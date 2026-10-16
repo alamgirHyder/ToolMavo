@@ -4,10 +4,19 @@ import { de, ur } from "../src/locales/messages.js";
 
 const baseURL = process.env.TEST_BASE_URL || "http://127.0.0.1:5173";
 async function contextFor(browser, locale, options = {}) {
-  return browser.newContext({ locale, baseURL, ...options });
+  const context = await browser.newContext({ locale, baseURL, ...options });
+  const code = locale.split("-")[0];
+  if (["de", "ur"].includes(code))
+    await context.addInitScript((code) => {
+      try {
+        if (!localStorage.getItem("toolmavo.language"))
+          localStorage.setItem("toolmavo.language", code);
+      } catch {}
+    }, code);
+  return context;
 }
 
-test("German browser detection, translated search, results and saved override", async ({
+test("German saved selection, translated search, results and saved override", async ({
   browser,
 }) => {
   const context = await contextFor(browser, "de-DE");
@@ -40,7 +49,7 @@ test("German browser detection, translated search, results and saved override", 
   await context.close();
 });
 
-test("Urdu browser detection, RTL, mobile layouts and localized tool output", async ({
+test("Urdu saved selection, RTL, mobile layouts and localized tool output", async ({
   browser,
 }) => {
   const context = await contextFor(browser, "ur-PK");
@@ -86,7 +95,7 @@ test("unsupported browser language falls back to English", async ({
   await context.close();
 });
 
-test("blocked local storage does not break detection or manual switching", async ({
+test("blocked local storage keeps English default and permits manual switching", async ({
   browser,
 }) => {
   const context = await contextFor(browser, "de-DE");
@@ -100,7 +109,7 @@ test("blocked local storage does not break detection or manual switching", async
   });
   const page = await context.newPage();
   await page.goto("/");
-  await expect(page.locator("html")).toHaveAttribute("lang", "de");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await page.getByTestId("language-select").selectOption("ur");
   await expect(page.locator("html")).toHaveAttribute("lang", "ur");
   await context.close();
@@ -227,4 +236,66 @@ test("user text is escaped and never translated as interface HTML", async ({
   await expect(page.locator(".output")).toHaveText(text);
   await expect(page.locator(".output img")).toHaveCount(0);
   expect(await page.evaluate(() => window.__toolmavoXss)).toBeUndefined();
+});
+
+test("new visitors always start in English, including German and Urdu browsers", async ({
+  browser,
+}) => {
+  for (const locale of ["de-DE", "ur-PK", "ar-SA", "zh-CN"]) {
+    const context = await browser.newContext({ locale, baseURL });
+    const page = await context.newPage();
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+    await expect(page.getByTestId("language-select")).toHaveValue("en");
+    await page.getByTestId("language-select").selectOption("fr");
+    await page.reload();
+    await expect(page.getByTestId("language-select")).toHaveValue("fr");
+    await context.close();
+  }
+});
+
+test("all twelve languages select, persist, format results and fit responsive screens", async ({
+  browser,
+}) => {
+  const { languages } = await import("../src/localization.js");
+  const { dictionaries } = await import("../src/locales/messages.js");
+  for (const language of languages) {
+    const context = await browser.newContext({ locale: "en-US", baseURL });
+    const page = await context.newPage();
+    await page.goto("/");
+    await page.getByTestId("language-select").selectOption(language.code);
+    await expect(page.locator("html")).toHaveAttribute("lang", language.code);
+    await expect(page.locator("html")).toHaveAttribute("dir", language.dir);
+    await expect(page.locator("h1")).toContainText(
+      dictionaries[language.code]?.["Every tool you need."] ||
+        "Every tool you need.",
+    );
+    for (const width of [390, 768, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+        language.code + " " + width,
+      ).toBe(true);
+    }
+    await page.reload();
+    await expect(page.getByTestId("language-select")).toHaveValue(
+      language.code,
+    );
+    await page.goto("/#tool/profit-margin-calculator");
+    await page.locator(".workspace button.primary").click();
+    await expect(page.locator(".output")).toContainText(
+      new Intl.NumberFormat(language.locale, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(40),
+    );
+    await page.goto("/#all-tools");
+    await page
+      .getByRole("textbox")
+      .fill(dictionaries[language.code]?.["Word Counter"] || "Word Counter");
+    await expect(page.locator(".tool-grid .tool")).toHaveCount(1);
+    await context.close();
+  }
 });

@@ -210,7 +210,7 @@
   "Too many submissions. Please try again in 15 minutes.": "Zu viele Anfragen. Versuche es in 15 Minuten erneut.",
   "Request exceeds 32 KB.": "Die Anfrage überschreitet 32 KB.",
   "Service temporarily unavailable. Please try again.": "Dienst vorübergehend nicht verfügbar. Versuche es erneut.",
-  "Language preference is saved on this device. Browser language is used on your first visit; no location lookup is performed.": "Deine Spracheinstellung wird auf diesem Gerät gespeichert. Beim ersten Besuch wird die Browsersprache verwendet; der Standort wird nicht abgefragt.",
+  "English is the default language. Your selected language is saved on this device. No location lookup is performed.": "Englisch ist die Standardsprache. Deine ausgewählte Sprache wird auf diesem Gerät gespeichert. Der Standort wird nicht abgefragt.",
   "Resize, compress and convert images": "Bilder skalieren, komprimieren und konvertieren",
   "Simple ways to manage your PDFs": "PDFs einfach verwalten",
   "Accurate answers for everyday tasks": "Genaue Antworten für alltägliche Aufgaben",

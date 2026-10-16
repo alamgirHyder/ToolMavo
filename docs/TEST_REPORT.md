@@ -1,23 +1,23 @@
-# ToolMavo 2.1.0 validation report
+# ToolMavo 2.2.0 validation report
 
 Validated on 16 October 2026 using Node.js 24, MySQL 8.4 and Chromium 154.
 
 | Check | Passed | Failed | Skipped |
 | --- | ---: | ---: | ---: |
-| Frontend utility and localization unit tests | 15 | 0 | 0 |
+| Frontend utility and localization unit tests | 16 | 0 | 0 |
 | HTTP API and security tests | 10 | 0 | 0 |
 | Real MySQL integration test | 1 | 0 | 0 |
-| Browser tests against the extracted production package | 20 | 0 | 0 |
-| **Total** | **46** | **0** | **0** |
+| Browser language, functional and accessibility tests | 31 | 0 | 0 |
+| **Total** | **58** | **0** | **0** |
 
-The browser runner reported no flaky tests. Three browser cases run axe WCAG 2 A/AA and WCAG 2.1 AA automated checks on six representative routes each, in English, German and Urdu (18 route/language scans). All scans found zero violations for the selected rules; this is automated coverage, not a complete accessibility certification.
+The browser runner reported no flaky tests. Twelve browser cases run automated axe WCAG 2 A/AA and WCAG 2.1 AA checks on six representative routes per language (72 route/language scans). All selected rules passed. This is automated coverage, not a complete accessibility certification.
 
 ## Verified behavior
 
-- First-visit browser-language detection for German and Urdu; unsupported languages fall back to English.
-- Explicit preferences override browser language and survive reload. Blocked local storage does not break detection or manual selection.
-- German and Urdu headings on all 30 tool pages. Dictionaries cover 278 interface messages per language, all category/tool descriptions, and matching interpolation placeholders.
-- German search, translated calculator/counter results, form statuses and API errors. Urdu layout and horizontal-overflow checks at 390, 768 and 1280 pixels.
+- English is the default for fresh visitors regardless of browser language, including German, Urdu, Arabic and Chinese browser profiles.
+- Explicit language choices survive reload. Blocked local storage retains the English default and still permits manual selection during the visit.
+- Twelve built-in languages: English, German, Urdu, Arabic, Hindi, Bengali, Simplified Chinese, Spanish, French, Portuguese (Brazil), Russian and Japanese. All eleven non-English dictionaries cover 278 messages, every category/tool description and matching placeholders. All 30 German and Urdu tool pages are also exercised in the browser.
+- All 12 language selections, remembered choices, translated tool search and locale-specific calculator output. Responsive overflow checks at 390, 768 and 1280 pixels in all languages. Arabic and Urdu use RTL. German/Urdu tests also exercise live form statuses, counter outputs and API errors.
 - Changing language preserves entered text, selected files, generated encodings, saved invoice state and chosen currency. User HTML-like content remains escaped text.
 - Image exports have the expected JPEG/WebP signatures; image resizing produces the requested dimensions. Images-to-PDF produces a readable PDF.
 - PDF merge/extraction produces expected page counts; reorder changes the first page dimensions as requested. Watermarked PDFs remain readable. PDF-to-JPG produces the expected image dimensions and rendered page content.
@@ -26,17 +26,11 @@ The browser runner reported no flaky tests. Three browser cases run axe WCAG 2 A
 
 ## Release checks
 
-- Production Vue build passed using a clean frozen-lockfile frontend install.
-- The upload ZIP was extracted into a separate directory. Root dependencies installed with `npm ci --omit=dev`; `npm start` honored the injected port and served the application and a working MySQL health endpoint.
-- API and MySQL tests passed from the extracted package. Frontend unit tests passed after installing its test dependencies. Browser tests ran against the extracted package's production server.
+- Production Vue build passed. Dependencies were unchanged for this release; no external translation service or API key is used.
+- The deployment ZIP includes the production Vue assets, server, lockfiles, all language packs, tests and documentation. File checksums and manifest verify included content.
+- API, frontend unit and real MySQL tests passed. All 31 browser cases ran against the production Node server serving the built frontend; final archive startup is separately smoke-tested.
 - Backend and frontend `npm audit --omit=dev` results: **0 known vulnerabilities** in each. PDF.js was updated to 6.4.299 and its loading-task cleanup adapted to the updated API.
-- Archive file hashes were verified. The final package retains this tested runtime fingerprint:
-
-```text
-eb00a89fa561d030c2809d9f38c2c074151f6149ddf84d6840bd335aba34216e
-```
-
-`DEPLOYMENT-MANIFEST.json` records the runtime fingerprint and hashes for included files. The adjacent `.zip.sha256` file verifies the complete final ZIP. Documentation/screenshots may be refreshed without changing the tested runtime fingerprint.
+- Archive file hashes were verified. `DEPLOYMENT-MANIFEST.json` records all 12 languages, the English default, a runtime fingerprint and SHA-256 hashes for included files. The adjacent `.zip.sha256` verifies the complete ZIP.
 
 ## Reproduce
 

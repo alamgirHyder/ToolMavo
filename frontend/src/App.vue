@@ -576,7 +576,7 @@ async function sendContact() {
       <p class="smallnote language-note">
         {{
           t(
-            "Language preference is saved on this device. Browser language is used on your first visit; no location lookup is performed.",
+            "English is the default language. Your selected language is saved on this device. No location lookup is performed.",
           )
         }}
       </p>

@@ -6,11 +6,11 @@ A responsive Vue 3 website with **Node.js / Express and MySQL**, adapted for Hos
 
 ## Languages
 
-The interface supports **English, German and Urdu**. On the first visit it uses the first supported browser language (for example `de-DE` → German or `ur-PK` → Urdu), falling back to English. The header selector saves an explicit preference in local storage on that device. It works even when storage is blocked, although the choice then cannot survive a reload. Location/IP lookup is not used: an English-language browser in Pakistan correctly remains English.
+The interface includes **12 built-in languages**: English, German, Urdu, Arabic, Hindi, Bengali, Simplified Chinese, Spanish, French, Portuguese (Brazil), Russian and Japanese. **English is the default for every new visitor**, regardless of browser language or country. The header selector remembers an explicit choice in local storage. If storage is blocked, selection still works for the current visit. No IP/location lookup, external translation API or service account is used.
 
-Navigation, all 30 tool names/descriptions, instructions, labels, validation/status messages and generated calculator/counter results are translated. Urdu uses right-to-left layout. Locale-specific numbers and invoice dates update with the selector. User-entered text, source files, URLs, QR contents, generated encodings and invoice currency are never automatically translated or changed. Native browser controls (file dialogs and built-in form validation) follow the browser/operating-system language.
+Navigation, all 30 tool names/descriptions, instructions, labels, validation/status messages and generated calculator/counter results are translated. Urdu and Arabic use right-to-left layouts. Locale-specific numbers and invoice dates update with the selector. User text, files, URLs, QR contents, encodings and invoice currency are never automatically translated. Native file dialogs and browser form-validation messages follow browser/OS language.
 
-Translations live in `frontend/src/locales/de.json` and `ur.json`. English interface messages are the lookup keys. Tests require both dictionaries to cover every catalog entry and template message, with matching interpolation placeholders. New languages should be added to the language registry and dictionaries together.
+Translations live in the eleven language JSON files under `frontend/src/locales/`. English interface messages are the lookup keys. Tests require both dictionaries to cover every catalog entry and template message, with matching interpolation placeholders. New languages should be added to the language registry and dictionaries together.
 
 ## Deploy on Hostinger
 

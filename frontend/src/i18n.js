@@ -11,14 +11,7 @@ let storage;
 try {
   storage = globalThis.localStorage;
 } catch {}
-const locale = ref(
-  detectLanguage(
-    storage,
-    globalThis.navigator?.languages?.length
-      ? globalThis.navigator.languages
-      : [globalThis.navigator?.language],
-  ),
-);
+const locale = ref(detectLanguage(storage));
 watch(
   locale,
   (code) => {

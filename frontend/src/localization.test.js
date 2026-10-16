@@ -8,23 +8,23 @@ import {
   localeInfo,
   preferenceKey,
 } from "./localization.js";
-import { de, ur } from "./locales/messages.js";
+import { de, ur, dictionaries } from "./locales/messages.js";
 import { cats, tools } from "./catalog.js";
 import { calculate, transform } from "./tools.js";
 const storage = (value) => ({
   getItem: (key) => (key === preferenceKey ? value : null),
 });
-test("browser locales select German and Urdu, with English fallback", () => {
-  assert.equal(detectLanguage(storage(null), ["de-DE", "en-US"]), "de");
-  assert.equal(detectLanguage(storage(null), ["ur-PK"]), "ur");
-  assert.equal(detectLanguage(storage(null), ["fr-FR", "de-AT"]), "de");
+test("English is the default regardless of browser language", () => {
+  assert.equal(detectLanguage(storage(null), ["de-DE", "en-US"]), "en");
+  assert.equal(detectLanguage(storage(null), ["ur-PK"]), "en");
+  assert.equal(detectLanguage(storage(null), ["fr-FR", "de-AT"]), "en");
   assert.equal(detectLanguage(storage(null), ["en-PK"]), "en");
   assert.equal(detectLanguage(storage(null), ["fr-FR"]), "en");
   assert.equal(detectLanguage(null, []), "en");
 });
 test("saved preference wins and unavailable storage remains usable", () => {
   assert.equal(detectLanguage(storage("ur"), ["de-DE"]), "ur");
-  assert.equal(detectLanguage(storage("bad"), ["de-DE"]), "de");
+  assert.equal(detectLanguage(storage("bad"), ["de-DE"]), "en");
   assert.equal(
     detectLanguage(
       {
@@ -34,7 +34,7 @@ test("saved preference wins and unavailable storage remains usable", () => {
       },
       ["ur-PK"],
     ),
-    "ur",
+    "en",
   );
   assert.equal(supportedLanguage(undefined), null);
   assert.equal(supportedLanguage("DE_ch"), "de");
@@ -63,7 +63,7 @@ test("translation interpolation preserves user content and has English fallback"
     translate("de", "How to use {tool}", { tool: name }),
     "So verwendest du " + name,
   );
-  assert.equal(translate("fr", "Home"), "Home");
+  assert.equal(translate("xx", "Home"), "Home");
   assert.equal(
     translate("ur", "Untranslated future message"),
     "Untranslated future message",
@@ -182,4 +182,33 @@ test("API and native failures map to localized safe messages", async () => {
     errorKey(new Error("private database details")),
     "Operation failed. Please check your input.",
   );
+});
+
+test("all eleven non-English language packs have complete messages and placeholders", () => {
+  assert.equal(Object.keys(dictionaries).length, 11);
+  const placeholders = (text) =>
+    [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
+  for (const [code, messages] of Object.entries(dictionaries)) {
+    assert.deepEqual(
+      Object.keys(messages).sort(),
+      Object.keys(de).sort(),
+      code,
+    );
+    for (const [key, value] of Object.entries(messages)) {
+      assert.ok(value.trim(), code + ": " + key);
+      assert.deepEqual(
+        placeholders(value),
+        placeholders(key),
+        code + ": " + key,
+      );
+      assert.equal(translate(code, key), value);
+    }
+    for (const item of [...cats, ...tools])
+      for (const key of [item.name, item.desc])
+        assert.ok(messages[key], code + ": " + key);
+  }
+  assert.equal(localeInfo("ar").dir, "rtl");
+  assert.equal(localeInfo("zh").dir, "ltr");
+  assert.equal(detectLanguage(storage("fr")), "fr");
+  assert.equal(detectLanguage(storage("ar")), "ar");
 });

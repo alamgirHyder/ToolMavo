@@ -1,8 +1,17 @@
-import { de, ur } from "./locales/messages.js";
+import { de, ur, dictionaries } from "./locales/messages.js";
 export const languages = [
   { code: "en", name: "English", locale: "en-US", dir: "ltr" },
   { code: "de", name: "Deutsch", locale: "de-DE", dir: "ltr" },
   { code: "ur", name: "اردو", locale: "ur-PK", dir: "rtl" },
+  { code: "ar", name: "العربية", locale: "ar-SA", dir: "rtl" },
+  { code: "hi", name: "हिन्दी", locale: "hi-IN", dir: "ltr" },
+  { code: "bn", name: "বাংলা", locale: "bn-BD", dir: "ltr" },
+  { code: "zh", name: "简体中文", locale: "zh-CN", dir: "ltr" },
+  { code: "es", name: "Español", locale: "es-ES", dir: "ltr" },
+  { code: "fr", name: "Français", locale: "fr-FR", dir: "ltr" },
+  { code: "pt", name: "Português", locale: "pt-BR", dir: "ltr" },
+  { code: "ru", name: "Русский", locale: "ru-RU", dir: "ltr" },
+  { code: "ja", name: "日本語", locale: "ja-JP", dir: "ltr" },
 ];
 export const preferenceKey = "toolmavo.language";
 export function supportedLanguage(value) {
@@ -10,20 +19,16 @@ export function supportedLanguage(value) {
   const code = value.toLowerCase().split(/[-_]/)[0];
   return languages.some((l) => l.code === code) ? code : null;
 }
-export function detectLanguage(storage, browserLanguages = []) {
+export function detectLanguage(storage) {
   try {
     const saved = supportedLanguage(storage?.getItem(preferenceKey));
     if (saved) return saved;
   } catch {}
-  for (const value of browserLanguages) {
-    const code = supportedLanguage(value);
-    if (code) return code;
-  }
   return "en";
 }
 export function translate(language, key, params = {}) {
   const normalized = String(key).replace(/\s+/g, " ").trim();
-  const dictionary = language === "de" ? de : language === "ur" ? ur : null;
+  const dictionary = dictionaries[language];
   const message = dictionary?.[normalized] ?? normalized;
   return message.replace(/\{(\w+)\}/g, (match, name) =>
     Object.hasOwn(params, name) ? String(params[name]) : match,

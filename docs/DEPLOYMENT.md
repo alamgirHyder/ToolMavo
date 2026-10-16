@@ -71,4 +71,4 @@ Contact messages are stored, not emailed. Invoice saves create new receipts, not
 
 `toolmavo-hostinger.zip` contains the production Vue build, Express server, dependency lockfiles, source code, automated tests and deployment/test documentation. It excludes credentials, `.env`, `node_modules`, database contents and local caches. Install dependencies on the host with `npm ci`; use `npm run build` if the panel requires a build, then `npm start`. The included prebuilt frontend can also run after `npm ci --omit=dev` with no frontend rebuild.
 
-English/German/Urdu detection and switching require no API keys, paid translation service, location permission or extra environment variables. Serve the site over HTTPS so clipboard features work. Keep the database variables on the server; do not set frontend `VITE_` variables containing secrets.
+The 12 built-in language packs and manual switching require no API keys, paid translation service, location permission or extra environment variables. Serve the site over HTTPS so clipboard features work. Keep the database variables on the server; do not set frontend `VITE_` variables containing secrets.
