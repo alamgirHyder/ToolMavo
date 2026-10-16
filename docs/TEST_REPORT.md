@@ -1,3 +1,11 @@
+# Hostinger startup patch 2.2.1
+
+Hostinger loads the configured entry through `require()`. The previous entry used top-level `await`, which Node rejects with `ERR_REQUIRE_ASYNC_MODULE` in this loading path. Database initialization now runs inside an async bootstrap function, with startup failure handling. The entry file remains `server/index.js`.
+
+Patch validation: **3 startup tests, 10 API tests, and 16 frontend unit tests passed** (29 checks, no failures or skips). Startup tests launch separate processes for both `require('./server/index.js')` and normal Node execution, verify MySQL health and the home page, and check missing settings produce an unsuccessful exit with a useful error. The baseline feature report below remains the previous full 58-test run; browser and translation code did not change in this patch.
+
+## Previous release baseline
+
 # ToolMavo 2.2.0 validation report
 
 Validated on 16 October 2026 using Node.js 24, MySQL 8.4 and Chromium 154.

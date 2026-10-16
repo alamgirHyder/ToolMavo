@@ -72,3 +72,10 @@ Contact messages are stored, not emailed. Invoice saves create new receipts, not
 `toolmavo-hostinger.zip` contains the production Vue build, Express server, dependency lockfiles, source code, automated tests and deployment/test documentation. It excludes credentials, `.env`, `node_modules`, database contents and local caches. Install dependencies on the host with `npm ci`; use `npm run build` if the panel requires a build, then `npm start`. The included prebuilt frontend can also run after `npm ci --omit=dev` with no frontend rebuild.
 
 The 12 built-in language packs and manual switching require no API keys, paid translation service, location permission or extra environment variables. Serve the site over HTTPS so clipboard features work. Keep the database variables on the server; do not set frontend `VITE_` variables containing secrets.
+
+
+## Hostinger loader compatibility
+
+Version 2.2.1 removes top-level await from the startup module graph so Hostinger's `lsnode.js` can load `server/index.js` with `require()`. Keep the entry file set to `server/index.js`. After updating GitHub, redeploy the latest commit; a restart of an older built version will not include this correction. Existing database variables remain applicable.
+
+To reproduce the hosting loader locally, supply your test database bindings and run `npm run test:startup`. The test also covers direct Node startup and missing configuration.
