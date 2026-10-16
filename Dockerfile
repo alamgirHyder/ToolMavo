@@ -1,20 +1,18 @@
-FROM node:24-bookworm-slim AS frontend
-WORKDIR /build/frontend
-COPY frontend/package*.json ./
-RUN npm ci --no-audit --no-fund
-COPY frontend/ ./
-RUN npm run build
-FROM maven:3.9.11-eclipse-temurin-21 AS backend
-WORKDIR /build/backend
-COPY backend/pom.xml ./
-RUN mvn -B dependency:go-offline
-COPY backend/src ./src
-COPY --from=frontend /build/frontend/dist /build/frontend/dist
-RUN mvn -B package
-FROM eclipse-temurin:21-jre-alpine
-RUN addgroup -S toolmavo && adduser -S toolmavo -G toolmavo
-USER toolmavo
+FROM node:24-bookworm-slim AS build
 WORKDIR /app
-COPY --from=backend /build/backend/target/toolmavo-1.0.0.jar app.jar
+COPY package*.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+COPY frontend/package*.json ./frontend/
+RUN npm --prefix frontend ci --include=dev --no-audit --no-fund
+COPY frontend/ ./frontend/
+RUN npm --prefix frontend run build
+FROM node:24-bookworm-slim
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/frontend/dist ./frontend/dist
+COPY package*.json ./
+COPY server ./server
+USER node
 EXPOSE 8080
-ENTRYPOINT ["java","-jar","app.jar"]
+CMD ["node","server/index.js"]

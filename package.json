@@ -1,0 +1,25 @@
+{
+  "name": "toolmavo",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "build": "npm --prefix frontend ci --include=dev && npm --prefix frontend run build",
+    "test": "node --test server/test/api.test.js",
+    "test:frontend": "npm --prefix frontend test",
+    "test:integration": "node --test server/test/mysql.integration.test.js",
+    "package:hostinger": "python3 scripts/package-hostinger.py"
+  },
+  "dependencies": {
+    "decimal.js": "^10.6.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0",
+    "mysql2": "^3.15.0",
+    "zod": "^4.1.0"
+  }
+}

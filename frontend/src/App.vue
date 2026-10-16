@@ -409,7 +409,7 @@ async function sendContact() {
           <p class="lead">
             Images, PDFs, QR content and text tool inputs stay in your browser.
             Invoice and contact form submissions are sent to the server and
-            stored in PostgreSQL.
+            stored in MySQL.
           </p>
           <h2>Before public launch</h2>
           <p class="usecase">

@@ -8,3 +8,6 @@ backend/target/
 .DS_Store
 test-results/
 playwright-report/
+
+node_modules/
+artifacts/

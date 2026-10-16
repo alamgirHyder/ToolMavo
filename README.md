@@ -1,107 +1,78 @@
 # ToolMavo
 
-A working Vue 3 website based on the supplied [HTML prototype](design/layout.html), with a Java 21 / Spring Boot API and PostgreSQL storage. The original teal design, six categories, 30 tools, responsive navigation, search, and company pages are implemented.
+A responsive Vue 3 website with **Node.js / Express and MySQL**, adapted for Hostinger Node.js hosting. It includes all 30 tools from the supplied HTML layout, searchable categories, image/PDF downloads, invoice preview/save/print, and a database-backed contact form.
 
-![Desktop website](docs/home-desktop.png)
+![ToolMavo](docs/home-desktop.png)
 
-## Features
+## Deploy on Hostinger
 
-- **Images:** compression to JPEG, resize, JPG → WebP, WebP → JPG, PNG → JPG, centered crop. Preview and download results. JPEG output uses a white background for transparency.
-- **PDF:** merge in selection order, extract selected pages, images → PDF, PDF pages → JPG, reorder selected pages, text watermark. Page selection accepts `1,3-5,2`. Split produces one PDF of selected pages; JPG exports have separate download buttons.
-- **Calculators:** freelance rate, profit margin, markup, VAT added to net amount, discount, break-even. Invalid inputs produce useful errors.
-- **Text:** Unicode character and word counts, case conversion, duplicate-line removal, corresponding-line comparison.
-- **Developer:** JSON formatting/validation, Unicode Base64 encoding/decoding, URL encoding/decoding, cryptographic UUID v4 generation.
-- **Business:** downloadable QR codes, invoice preview/save/print to PDF, UTM links preserving existing URL parameters.
-- **Contact:** validated messages stored in PostgreSQL. Email delivery is not configured.
+Follow [the Hostinger deployment guide](docs/DEPLOYMENT.md). Use the repository root as the application root, Node.js 24 (or 22.12+), `npm run build` as the build command, and `npm start` / `server/index.js` as the startup command/file. The server serves the Vue build and `/api` on the same domain.
 
-Files and utility inputs are processed in the browser, not uploaded to the API. Only invoice and contact submissions are stored. File limits: 25 MB per file, 30 files, 100 MB combined. Encrypted PDFs are unsupported; JPG rendering exports up to 30 selected pages. Invoice/contact records are private to database operators: there is deliberately no unauthenticated record-listing endpoint.
-
-## Deploy for testing
-
-See [free Render deployment instructions](docs/DEPLOYMENT.md). The root `render.yaml` defines the complete website and PostgreSQL on free test plans. Netlify configuration is also included for use with a separately deployed backend.
-
-## Quick start with Docker
-
-Requires Docker and Docker Compose v2.
+A prebuilt upload package can be generated with:
 
 ```bash
-cp .env.example .env
-# Edit .env: choose a strong unique DATABASE_PASSWORD for deployment.
-docker compose up --build -d
-curl --fail http://localhost:8080/api/health
+npm ci
+npm run build
+npm run package:hostinger
 ```
 
-The app serves the production Vue build and API from port **8080**. PostgreSQL is bound to loopback port **5432** and stored in the named `postgres_data` volume. `docker compose down` retains data; `docker compose down -v` deletes it. Changing the password after initialization also requires updating the database role password; changing `.env` alone does not change an existing PostgreSQL role.
+Output: `artifacts/toolmavo-hostinger.zip`. It contains the Node server, source, lockfiles and built frontend, without database credentials or dependencies.
 
 ## Local development
 
-Requires Node.js **22.12+ or 24**, npm, **JDK 21** (not only a JRE), Maven **3.9+**, and PostgreSQL **17** (or Docker for the database).
+Requires Node.js 22.12+ (24 recommended), npm, and MySQL 8.0+ / MariaDB compatible with the schema. Docker Compose uses MySQL 8.4.
 
 ```bash
-cp .env.example .env
-# Terminal 1, project root:
-docker compose up -d db
-
-# Terminal 2:
-cd backend
-# Defaults match .env.example; export DATABASE_PASSWORD if changed.
-mvn spring-boot:run
-
-# Terminal 3:
-cd frontend
 npm ci
-npm run dev
-```
-
-Vite runs on port **5173**, proxying `/api` to port **8080**. No CORS configuration is needed. For a remote database set `DATABASE_URL` to a PostgreSQL **JDBC** URL, plus `DATABASE_USER` and `DATABASE_PASSWORD`. Flyway creates the schema on startup; Hibernate validates it. `PORT` changes the backend listener.
-
-## Build and test
-
-```bash
-./scripts/build.sh
-java -jar backend/target/toolmavo-1.0.0.jar
-```
-
-The frontend must be built before packaging the backend; Maven copies `frontend/dist` into the application JAR.
-
-```bash
-cd frontend
-npm test                    # six calculation, text, encoding and URL tests
 npm run build
-# Start backend and frontend before browser tests.
-CHROMIUM_PATH=/usr/bin/chromium npx playwright test
-# On machines without Chromium, install Playwright Chromium, then set
-# CHROMIUM_PATH to its executable (or adjust playwright.config.js).
-
-cd ../backend
-mvn test                    # seven API, persistence and validation tests
+# Start a local database; these passwords are for local testing only.
+DB_PASSWORD=toolmavo_local MYSQL_ROOT_PASSWORD=toolmavo_local_root docker compose up -d db
+DB_HOST=127.0.0.1 DB_NAME=toolmavo DB_USER=toolmavo DB_PASSWORD=toolmavo_local npm start
 ```
 
-Backend tests use H2's PostgreSQL compatibility mode. Browser integration and API smoke checks also run against real PostgreSQL during development. `TEST_BASE_URL` can point browser tests at the packaged app to test production assets.
+The application listens on port 8080 unless `PORT` is supplied. For live Vue development, run `npm run dev` inside `frontend`; Vite proxies `/api` to port 8080.
+
+The app requires `DB_HOST`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD`. Optional settings: `DB_PORT` (3306), `DB_SSL=true` (verified TLS), `NODE_ENV=production`, and `TRUST_PROXY_HOPS` (default 0; set only when your hosting proxy topology is confirmed). Set these through the hosting dashboard; `.env.example` is a reference, not an automatically loaded credentials file. Database credentials never belong in frontend variables.
+
+Tables are created on startup with `CREATE TABLE IF NOT EXISTS`; the database user needs CREATE, SELECT and INSERT privileges. Startup fails if the database cannot be initialized. Existing tables are retained; future schema changes require explicit migrations. This version does not import historical PostgreSQL data.
+
+## Tools
+
+- **Image:** JPEG compression, resize, JPG→WebP, WebP→JPG, PNG→JPG, center crop. JPEG output composites transparency onto white. Dimensions up to 8192px and output up to 32 megapixels.
+- **PDF:** merge in selection order, extract selected pages into one PDF, images→PDF, PDF→JPG, reorder, text watermark. Ranges such as `1,3-5,2` are supported. Encrypted PDFs are unsupported. JPG exports offer individual download buttons, up to 30 selected pages.
+- **Calculator:** freelance rate, profit margin, markup, VAT added to net amount, discount and break-even.
+- **Text/developer:** word and Unicode character counts, case conversion, deduplication, line comparison, JSON validation/formatting, Unicode Base64, URL encoding and UUID v4.
+- **Business:** QR PNG downloads, invoices saved in MySQL and printable as PDF, UTM links preserving existing URL parameters.
+
+Files, tool text and QR contents are processed locally in the browser. Only contact and invoice submissions are sent to the API. File limits: 25 MB each, 30 files, 100 MB combined. Contact messages are stored without email delivery; there is no admin inbox or account system.
+
+## Tests
+
+```bash
+npm test                  # HTTP API, validation, decimal rounding and security tests
+npm run test:frontend     # existing utility tests
+DB_HOST=127.0.0.1 DB_NAME=toolmavo DB_USER=toolmavo DB_PASSWORD=toolmavo_local npm run test:integration
+# With the application already running:
+cd frontend
+TEST_BASE_URL=http://127.0.0.1:8080 npm run test:e2e
+```
+
+Browser tests require Chromium; set `CHROMIUM_PATH` if it is not `/usr/bin/chromium`. The MySQL integration test creates and deletes only its own uniquely identified test records. The API unit tests use an injected database stub; integration and browser tests exercise real MySQL.
+
+## API and privacy
+
+| Method | Path            | Result                                                                                         |
+| ------ | --------------- | ---------------------------------------------------------------------------------------------- |
+| GET    | `/api/health`   | Runs a database query; returns `UP` and `MySQL`                                                |
+| POST   | `/api/contact`  | Validates and stores `{name,email,message}`                                                    |
+| POST   | `/api/invoices` | Validates and stores `{client,email,description,quantity,rate,currency}` and returns a receipt |
+
+Invoices use decimal arithmetic and HALF_UP rounding; currencies are USD, EUR, GBP, PKR. Rate and quantity support two decimals. Unknown fields, including a client-supplied total, are rejected. No public record-listing API exposes personal data. Submissions are limited to 30 per 15 minutes per client IP in each Node process, and API bodies to 32 KB. Configure proxy trust accurately to distinguish visitor IPs behind the host's proxy. For multiple processes, use host-level abuse controls or a shared rate-limit store.
 
 ## Cloud workspace
 
-Each task already has an isolated checkout; use `/workspace/ToolMavo` directly without a new Git worktree.
+Use the existing isolated checkout at `/workspace/ToolMavo`; do not create another Git worktree unless asked. `scripts/cloud-install.sh` installs, builds and tests using workspace npm caches. `scripts/cloud-start.sh` starts local MySQL and the Node app. Live processes need restarting after restoration. Keep independent database backups.
 
-```bash
-./scripts/cloud-install.sh  # JDK, Maven, proxy-aware dependency setup, tests, build
-./scripts/cloud-start.sh    # starts database and packaged app in foreground
-```
+## Launch details
 
-The cloud installer uses workspace caches because the default home-directory caches are unavailable. Maven uses the platform HTTPS proxy and system Java truststore, retaining TLS verification. Startup defaults are for local development only. Live processes must be restarted after environment restoration. Database volume backups must be managed independently of repository snapshots.
-
-## API
-
-| Method | Path | Behavior |
-| --- | --- | --- |
-| GET | `/api/health` | Verifies a database query and returns status |
-| POST | `/api/contact` | Stores `{name,email,message}`, returns ID and timestamp |
-| POST | `/api/invoices` | Stores `{client,email,description,quantity,rate,currency}`, calculates and returns total and receipt |
-
-Currencies: USD, EUR, GBP, PKR. Invoice rates/quantities accept at most two decimal places. Totals are calculated on the server with decimal arithmetic and HALF_UP rounding. Unknown request properties and invalid input receive HTTP 400.
-
-## Before public launch
-
-The website works locally; deployment and domain configuration are not included. Configure HTTPS, production database credentials, backups, retention/deletion procedures, monitoring, and public endpoint abuse protection at your hosting edge. Add reviewed operator/legal details to the privacy and terms pages. Contact requests currently persist in the database without email notifications or an admin inbox. Invoice saves create new immutable receipts rather than editing previous records; print or download the receipt for your records. There are no accounts, payment integrations, tax compliance guarantees, or email delivery claims.
-
-See [mobile screenshot](docs/home-mobile.png) and the original [prototype](design/layout.html).
+Configure HTTPS, operator/legal contact information, data retention/deletion, database backups and support handling before collecting public submissions. Legal pages describe the implementation but need operator-specific review. A hosting plan is not proof that its Node.js deployment or database has been configured: follow the guide and verify the public URL. The original [layout prototype](design/layout.html) and [mobile screenshot](docs/home-mobile.png) are included. The previous Java/PostgreSQL and Render configurations have been retired from the active app.
