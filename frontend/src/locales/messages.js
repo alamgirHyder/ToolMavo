@@ -1,0 +1,13 @@
+import de from "./de.json" with { type: "json" };
+import ur from "./ur.json" with { type: "json" };
+import ar from "./ar.json" with { type: "json" };
+import hi from "./hi.json" with { type: "json" };
+import bn from "./bn.json" with { type: "json" };
+import zh from "./zh.json" with { type: "json" };
+import es from "./es.json" with { type: "json" };
+import fr from "./fr.json" with { type: "json" };
+import pt from "./pt.json" with { type: "json" };
+import ru from "./ru.json" with { type: "json" };
+import ja from "./ja.json" with { type: "json" };
+export { de, ur, ar, hi, bn, zh, es, fr, pt, ru, ja };
+export const dictionaries = { de, ur, ar, hi, bn, zh, es, fr, pt, ru, ja };
