@@ -1,0 +1,10 @@
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+backend/target/
+.env
+*.log
+.DS_Store
+test-results/
+playwright-report/

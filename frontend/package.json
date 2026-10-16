@@ -1,0 +1,29 @@
+{
+  "name": "toolmavo-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test src/tools.test.js",
+    "test:e2e": "playwright test",
+    "format": "prettier --write src e2e *.js *.json index.html"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.4.296",
+    "qrcode": "^1.5.4",
+    "vue": "^3.5.22"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "prettier": "^3.9.10",
+    "vite": "^7.1.12"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}
