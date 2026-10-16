@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from "vue";
 import QRCode from "qrcode";
+import { useI18n, apiFailure, errorKey } from "./i18n";
+const { t, locale, number, date } = useI18n();
 import { calculate, transform, trackingUrl } from "./tools";
 import { download, processImage, processPdf } from "./files";
 const props = defineProps({ tool: Object });
@@ -8,6 +10,7 @@ const text = ref(""),
   second = ref(""),
   action = ref("upper"),
   result = ref(""),
+  resultSpec = ref(null),
   error = ref(""),
   busy = ref(false),
   files = ref([]),
@@ -20,6 +23,7 @@ const opts = ref({
   pages: "1",
   watermark: "CONFIDENTIAL",
 });
+const errorParams = ref({});
 const values = ref([100, 60, 25, 46]);
 const invoice = ref({
   client: "",
@@ -76,6 +80,7 @@ watch(
     text.value = "";
     second.value = "";
     result.value = "";
+    resultSpec.value = null;
     error.value = "";
     files.value = [];
     qr.value = "";
@@ -115,6 +120,8 @@ async function run(mode) {
   busy.value = true;
   error.value = "";
   result.value = "";
+  resultSpec.value = null;
+  notice.value = "";
   clearOutputs();
   try {
     const slug = props.tool.slug;
@@ -129,22 +136,38 @@ async function run(mode) {
             url: URL.createObjectURL(blob),
           },
         ];
-        result.value = `Original: ${(files.value[0].size / 1024).toFixed(1)} KB → Result: ${(blob.size / 1024).toFixed(1)} KB${blob.size >= files.value[0].size ? " · Output is not smaller; try reducing quality." : ""}`;
+        resultSpec.value = {
+          kind: "image",
+          original: files.value[0].size / 1024,
+          size: blob.size / 1024,
+        };
       } else
         outputs.value = (await processPdf(slug, files.value, opts.value)).map(
           (o) => ({ ...o, url: URL.createObjectURL(o.blob) }),
         );
     } else if (props.tool.cat === "calculator") {
-      const v = calculate(slug, ...values.value.map(Number));
-      result.value = v.value + "\n" + v.note;
-    } else if (isText.value)
-      result.value = transform(
+      calculate(slug, ...values.value.map(Number));
+      resultSpec.value = {
+        kind: "calculator",
+        slug,
+        values: values.value.map(Number),
+      };
+    } else if (isText.value) {
+      const transformed = transform(
         slug,
         text.value,
         mode || action.value,
         second.value,
       );
-    else if (slug === "utm-link-builder")
+      if (["word-counter", "character-counter"].includes(slug))
+        resultSpec.value = { kind: "text", slug, text: text.value };
+      else if (
+        slug === "text-difference-checker" &&
+        transformed === "Texts are identical."
+      )
+        resultSpec.value = { kind: "identical" };
+      else result.value = transformed;
+    } else if (slug === "utm-link-builder")
       result.value = trackingUrl(
         utm.value.url,
         utm.value.source,
@@ -158,15 +181,15 @@ async function run(mode) {
       qr.value = await QRCode.toDataURL(text.value, { width: 320, margin: 2 });
     }
   } catch (e) {
-    error.value = e.message || "Operation failed. Please check your input.";
+    error.value = errorKey(e);
+    errorParams.value = e.params || {};
   } finally {
     busy.value = false;
   }
 }
 async function copy() {
   try {
-    await navigator.clipboard.writeText(result.value);
-    result.value = result.value;
+    await navigator.clipboard.writeText(displayResult.value);
     notice.value = "Copied to clipboard.";
   } catch {
     error.value = "Clipboard unavailable. Select and copy the result manually.";
@@ -187,25 +210,59 @@ async function saveInvoice() {
       }),
     });
     const data = await response.json();
-    if (!response.ok) throw Error(data.message || "Unable to save invoice.");
+    if (!response.ok) throw apiFailure(response, data);
     saved.value = data;
   } catch (e) {
-    error.value = e.message;
+    error.value =
+      e.translationKey || "Service temporarily unavailable. Please try again.";
+    errorParams.value = e.params || {};
   } finally {
     busy.value = false;
   }
 }
+const displayResult = computed(() => {
+  const spec = resultSpec.value;
+  if (!spec) return result.value;
+  const presentation = {
+    t,
+    n: (value, decimals = 2) =>
+      number(value, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      }),
+  };
+  if (spec.kind === "calculator") {
+    const calculated = calculate(spec.slug, ...spec.values, presentation);
+    return calculated.value + "\n" + calculated.note;
+  }
+  if (spec.kind === "text")
+    return transform(spec.slug, spec.text, "encode", "", presentation);
+  if (spec.kind === "identical") return t("Texts are identical.");
+  if (spec.kind === "image")
+    return (
+      t("Original: {original} KB → Result: {result} KB", {
+        original: presentation.n(spec.original, 1),
+        result: presentation.n(spec.size, 1),
+      }) +
+      (spec.size >= spec.original
+        ? " · " + t("Output is not smaller; try reducing quality.")
+        : "")
+    );
+  return result.value;
+});
 </script>
 <template>
-  <section class="workspace" :aria-label="tool.name + ' workspace'">
+  <section class="workspace" :aria-label="t(tool.name)">
     <template v-if="isFile">
       <div class="field">
         <label for="files">{{
-          tool.slug === "merge-pdf"
-            ? "Select PDFs in the order to combine"
-            : tool.slug === "images-to-pdf"
-              ? "Select images in page order"
-              : "Choose your file"
+          t(
+            tool.slug === "merge-pdf"
+              ? "Select PDFs in the order to combine"
+              : tool.slug === "images-to-pdf"
+                ? "Select images in page order"
+                : "Choose your file",
+          )
         }}</label
         ><input
           id="files"
@@ -221,18 +278,23 @@ async function saveInvoice() {
         />
       </div>
       <p class="smallnote">
-        Processed in your browser. Up to 30 files, 25 MB each, 100 MB total.
-        Encrypted PDFs are unsupported.
+        {{
+          t(
+            "Processed in your browser. Up to 30 files, 25 MB each, 100 MB total. Encrypted PDFs are unsupported.",
+          )
+        }}
       </p>
       <ol v-if="files.length">
-        <li v-for="file in files" :key="file.name">{{ file.name }}</li>
+        <li dir="auto" v-for="file in files" :key="file.name">
+          {{ file.name }}
+        </li>
       </ol>
       <div
         v-if="['image-resizer', 'image-cropper'].includes(tool.slug)"
         class="fieldgrid"
       >
         <div class="field">
-          <label for="width">Width (px)</label
+          <label for="width"> {{ t("Width (px)") }} </label
           ><input
             id="width"
             v-model="opts.width"
@@ -242,7 +304,7 @@ async function saveInvoice() {
           />
         </div>
         <div class="field">
-          <label for="height">Height (px)</label
+          <label for="height"> {{ t("Height (px)") }} </label
           ><input
             id="height"
             v-model="opts.height"
@@ -253,10 +315,10 @@ async function saveInvoice() {
         </div>
       </div>
       <p v-if="tool.slug === 'image-cropper'" class="smallnote">
-        Crops from the center to your chosen dimensions.
+        {{ t("Crops from the center to your chosen dimensions.") }}
       </p>
       <div class="field" v-if="tool.cat === 'image'">
-        <label for="quality">Quality: {{ opts.quality }}%</label
+        <label for="quality"> {{ t("Quality:") }} {{ opts.quality }}%</label
         ><input
           id="quality"
           type="range"
@@ -271,26 +333,31 @@ async function saveInvoice() {
           ['split-pdf', 'reorder-pdf-pages', 'pdf-to-jpg'].includes(tool.slug)
         "
       >
-        <label for="pages"
-          >Pages
+        <label for="pages">
+          {{ t("Pages") }}
           {{
-            tool.slug === "reorder-pdf-pages" ? "in desired order" : ""
+            tool.slug === "reorder-pdf-pages" ? t("in desired order") : ""
           }}</label
         ><input id="pages" v-model="opts.pages" placeholder="1,3-5,2" /><small
           class="smallnote"
-          >Page numbers start at 1. Split extracts selected pages into one
-          PDF.</small
         >
+          {{
+            t(
+              "Page numbers start at 1. Split extracts selected pages into one PDF.",
+            )
+          }}
+        </small>
       </div>
       <div class="field" v-if="tool.slug === 'pdf-watermark'">
-        <label for="watermark">Watermark text (Latin characters)</label
+        <label for="watermark">
+          {{ t("Watermark text (Latin characters)") }} </label
         ><input id="watermark" v-model="opts.watermark" maxlength="80" />
       </div>
     </template>
     <template v-else-if="tool.cat === 'calculator'"
       ><div class="fieldgrid">
         <div class="field" v-for="(label, i) in labels" :key="label">
-          <label :for="'value' + i">{{ label }}</label
+          <label :for="'value' + i">{{ t(label) }}</label
           ><input
             :id="'value' + i"
             type="number"
@@ -301,41 +368,50 @@ async function saveInvoice() {
         </div>
       </div>
       <p class="smallnote">
-        Estimates only. Monetary results use the same currency as your inputs.
-        VAT adds tax to the net amount.
+        {{
+          t(
+            "Estimates only. Monetary results use the same currency as your inputs. VAT adds tax to the net amount.",
+          )
+        }}
       </p></template
     >
     <template v-else-if="isText || tool.slug === 'qr-code-generator'">
       <div class="field" v-if="tool.slug !== 'uuid-generator'">
         <label for="input">{{
-          tool.slug === "qr-code-generator" ? "Text or URL" : "Input text"
+          t(tool.slug === "qr-code-generator" ? "Text or URL" : "Input text")
         }}</label
         ><textarea
           id="input"
           v-model="text"
-          placeholder="Type or paste here…"
+          dir="auto"
+          :placeholder="t('Type or paste here…')"
           maxlength="1000000"
         ></textarea>
       </div>
       <div class="field" v-if="tool.slug === 'text-difference-checker'">
-        <label for="second">Text to compare</label
-        ><textarea id="second" v-model="second" maxlength="1000000"></textarea
-        ><small class="smallnote"
-          >Compares corresponding lines; − original, + changed.</small
-        >
+        <label for="second"> {{ t("Text to compare") }} </label
+        ><textarea
+          id="second"
+          v-model="second"
+          dir="auto"
+          maxlength="1000000"
+        ></textarea
+        ><small class="smallnote">
+          {{ t("Compares corresponding lines; − original, + changed.") }}
+        </small>
       </div>
       <div class="field" v-if="tool.slug === 'case-converter'">
-        <label for="case">Case</label
+        <label for="case"> {{ t("Case") }} </label
         ><select id="case" v-model="action">
-          <option value="upper">UPPERCASE</option>
-          <option value="lower">lowercase</option>
-          <option value="title">Title Case</option>
+          <option value="upper">{{ t("UPPERCASE") }}</option>
+          <option value="lower">{{ t("lowercase") }}</option>
+          <option value="title">{{ t("Title Case") }}</option>
         </select>
       </div>
     </template>
     <template v-else-if="tool.slug === 'utm-link-builder'"
       ><div class="field" v-for="(v, k) in utm" :key="k">
-        <label :for="k">{{ k === "url" ? "Website URL" : k }}</label
+        <label :for="k">{{ t(k === "url" ? "Website URL" : k) }}</label
         ><input
           :id="k"
           v-model="utm[k]"
@@ -346,16 +422,17 @@ async function saveInvoice() {
       <form @submit.prevent="saveInvoice">
         <div class="fieldgrid">
           <div class="field">
-            <label for="client">Client name</label
+            <label for="client"> {{ t("Client name") }} </label
             ><input
               id="client"
               v-model="invoice.client"
+              dir="auto"
               required
               maxlength="150"
             />
           </div>
           <div class="field">
-            <label for="email">Client email</label
+            <label for="email"> {{ t("Client email") }} </label
             ><input
               id="email"
               type="email"
@@ -366,17 +443,18 @@ async function saveInvoice() {
           </div>
         </div>
         <div class="field">
-          <label for="description">Description</label
+          <label for="description"> {{ t("Description") }} </label
           ><input
             id="description"
             v-model="invoice.description"
+            dir="auto"
             required
             maxlength="500"
           />
         </div>
         <div class="fieldgrid">
           <div class="field">
-            <label for="qty">Quantity</label
+            <label for="qty"> {{ t("Quantity") }} </label
             ><input
               id="qty"
               type="number"
@@ -388,7 +466,7 @@ async function saveInvoice() {
             />
           </div>
           <div class="field">
-            <label for="rate">Rate</label
+            <label for="rate"> {{ t("Rate") }} </label
             ><input
               id="rate"
               type="number"
@@ -401,7 +479,7 @@ async function saveInvoice() {
           </div>
         </div>
         <div class="field">
-          <label for="currency">Currency</label
+          <label for="currency"> {{ t("Currency") }} </label
           ><select id="currency" v-model="invoice.currency">
             <option>USD</option>
             <option>EUR</option>
@@ -411,49 +489,70 @@ async function saveInvoice() {
         </div>
         <div class="actions">
           <button class="primary" :disabled="busy">
-            {{ busy ? "Saving…" : "Save invoice" }}</button
+            {{ t(busy ? "Saving…" : "Save invoice") }}</button
           ><button type="button" class="filter" @click="windowPrint">
-            Print / Save PDF
+            {{ t("Print / Save PDF") }}
           </button>
         </div>
       </form>
       <div class="invoice">
-        <h2>ToolMavo Invoice</h2>
+        <h2>{{ t("ToolMavo Invoice") }}</h2>
         <p v-if="saved">
-          Invoice #{{ saved.id }} ·
-          {{ new Date(saved.createdAt).toLocaleDateString() }}
+          {{ t("Invoice #") }} <bdi>{{ saved.id }}</bdi> ·
+          {{ date(saved.createdAt) }}
         </p>
         <p>
-          Bill to: {{ invoice.client || "Client name" }}<br />{{
+          {{ t("Bill to:") }} {{ invoice.client || t("Client name") }}<br />{{
             invoice.email
           }}
         </p>
         <table>
           <thead>
             <tr>
-              <th>Description</th>
-              <th>Quantity</th>
-              <th>Rate</th>
+              <th>{{ t("Description") }}</th>
+              <th>{{ t("Quantity") }}</th>
+              <th>{{ t("Rate") }}</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>{{ invoice.description }}</td>
-              <td>{{ invoice.quantity }}</td>
+              <td>{{ number(invoice.quantity) }}</td>
               <td>
-                {{ invoice.currency }} {{ Number(invoice.rate).toFixed(2) }}
+                {{ invoice.currency }}
+                {{
+                  number(invoice.rate, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                }}
               </td>
             </tr>
           </tbody>
         </table>
         <h3>
-          Total: {{ invoice.currency }}
-          {{ saved ? Number(saved.total).toFixed(2) : Number.isFinite(total) ? total.toFixed(2) : "—" }}
+          {{ t("Total:") }} {{ invoice.currency }}
+          {{
+            saved
+              ? number(saved.total, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
+              : Number.isFinite(total)
+                ? number(total, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })
+                : "—"
+          }}
         </h3>
       </div>
       <p v-if="saved" role="status">
-        Invoice saved to the database. Save a PDF for your records. Editing
-        requires saving a new invoice.
+        {{
+          t(
+            "Invoice saved to the database. Save a PDF for your records. Editing requires saving a new invoice.",
+          )
+        }}
       </p>
     </template>
     <div class="actions" v-if="tool.slug !== 'invoice-generator'">
@@ -462,55 +561,58 @@ async function saveInvoice() {
           ['base64-encoder-decoder', 'url-encoder-decoder'].includes(tool.slug)
         "
         ><button class="primary" :disabled="busy" @click="run('encode')">
-          Encode</button
+          {{ t("Encode") }}</button
         ><button class="filter" :disabled="busy" @click="run('decode')">
-          Decode
+          {{ t("Decode") }}
         </button></template
       ><button v-else class="primary" :disabled="busy" @click="run()">
         {{
-          busy
-            ? "Processing…"
-            : isFile
-              ? "Process file"
-              : tool.cat === "calculator"
-                ? "Calculate"
-                : tool.slug === "uuid-generator"
-                  ? "Generate UUID"
-                  : "Run tool"
+          t(
+            busy
+              ? "Processing…"
+              : isFile
+                ? "Process file"
+                : tool.cat === "calculator"
+                  ? "Calculate"
+                  : tool.slug === "uuid-generator"
+                    ? "Generate UUID"
+                    : "Run tool",
+          )
         }}
       </button>
     </div>
-    <p v-if="error" class="error" role="alert">{{ error }}</p>
-    <div v-if="result" class="result" aria-live="polite">
-      <pre class="output">{{ result }}</pre>
+    <p v-if="error" class="error" role="alert">{{ t(error, errorParams) }}</p>
+    <div v-if="displayResult" class="result" aria-live="polite">
+      <pre class="output" dir="auto">{{ displayResult }}</pre>
       <div class="actions">
-        <button class="filter" @click="copy">Copy result</button
+        <button class="filter" @click="copy">{{ t("Copy result") }}</button
         ><button
           class="filter"
-          @click="download(result, tool.slug + '.txt', 'text/plain')"
+          @click="download(displayResult, tool.slug + '.txt', 'text/plain')"
         >
-          Download text
+          {{ t("Download text") }}
         </button>
       </div>
     </div>
-    <p role="status" class="smallnote">{{ notice }}</p>
+    <p role="status" class="smallnote">{{ notice ? t(notice) : "" }}</p>
     <div v-for="o in outputs" :key="o.name" class="result">
       <img
         v-if="o.blob.type.startsWith('image/')"
         :src="o.url"
         class="preview"
-        alt="Processed result"
+        :alt="t('Processed result')"
       /><button class="primary" @click="download(o.blob, o.name)">
-        Download {{ o.name }}
+        {{ t("Download") }} {{ o.name }}
       </button>
     </div>
     <div v-if="qr" class="result">
-      <img :src="qr" class="preview" alt="Generated QR code" /><a
+      <img :src="qr" class="preview" :alt="t('Generated QR code')" /><a
         :href="qr"
         download="toolmavo-qr.png"
         class="filter"
-        >Download QR code</a
       >
+        {{ t("Download QR code") }}
+      </a>
     </div>
   </section>
 </template>

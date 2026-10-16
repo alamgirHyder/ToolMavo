@@ -78,11 +78,12 @@ export async function processPdf(slug, files, options) {
       "pdfjs-dist/build/pdf.worker.min.mjs",
       import.meta.url,
     ).href;
-    const pdf = await pdfjs.getDocument({
+    const loadingTask = pdfjs.getDocument({
       data: new Uint8Array(await files[0].arrayBuffer()),
       isEvalSupported: false,
-    }).promise;
+    });
     try {
+      const pdf = await loadingTask.promise;
       const pages = pageIndices(options.pages, pdf.numPages);
       if (pages.length > 30) throw Error("Export up to 30 pages at a time.");
       const results = [];
@@ -94,8 +95,7 @@ export async function processPdf(slug, files, options) {
         const canvas = document.createElement("canvas");
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-        await page.render({ canvasContext: canvas.getContext("2d"), viewport })
-          .promise;
+        await page.render({ canvas, viewport }).promise;
         results.push({
           blob: await canvasBlob(canvas, "image/jpeg", 0.9),
           name: `page-${n + 1}.jpg`,
@@ -103,7 +103,7 @@ export async function processPdf(slug, files, options) {
       }
       return results;
     } finally {
-      await pdf.destroy();
+      await loadingTask.destroy();
     }
   }
   const output = await PDFDocument.create();

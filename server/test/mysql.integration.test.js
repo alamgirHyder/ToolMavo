@@ -22,7 +22,7 @@ test("MySQL schema initialization is repeatable and records persist with exact d
       id,
       client: "Integration",
       email: "test@example.com",
-      description: "Unicode ✓",
+      description: "Deutsch Grüße · اردو زبان ✓",
       quantity: 2.5,
       rate: 10.25,
       currency: "USD",
@@ -33,7 +33,7 @@ test("MySQL schema initialization is repeatable and records persist with exact d
       id: contactId,
       name: "Integration",
       email: "test@example.com",
-      message: "Test SQL persistence ✓",
+      message: "Deutsch Nachricht · اردو پیغام ✓",
       createdAt: new Date().toISOString(),
     });
     const [rows] = await sql.execute(
@@ -41,12 +41,12 @@ test("MySQL schema initialization is repeatable and records persist with exact d
       [id],
     );
     assert.equal(rows[0].total, "25.63");
-    assert.equal(rows[0].description, "Unicode ✓");
+    assert.equal(rows[0].description, "Deutsch Grüße · اردو زبان ✓");
     const [contacts] = await sql.execute(
       "SELECT message FROM contact_message WHERE id=?",
       [contactId],
     );
-    assert.equal(contacts[0].message, "Test SQL persistence ✓");
+    assert.equal(contacts[0].message, "Deutsch Nachricht · اردو پیغام ✓");
   } finally {
     await sql.execute("DELETE FROM invoice WHERE id=?", [id]);
     await sql.execute("DELETE FROM contact_message WHERE id=?", [contactId]);

@@ -4,9 +4,17 @@ A responsive Vue 3 website with **Node.js / Express and MySQL**, adapted for Hos
 
 ![ToolMavo](docs/home-desktop.png)
 
+## Languages
+
+The interface supports **English, German and Urdu**. On the first visit it uses the first supported browser language (for example `de-DE` → German or `ur-PK` → Urdu), falling back to English. The header selector saves an explicit preference in local storage on that device. It works even when storage is blocked, although the choice then cannot survive a reload. Location/IP lookup is not used: an English-language browser in Pakistan correctly remains English.
+
+Navigation, all 30 tool names/descriptions, instructions, labels, validation/status messages and generated calculator/counter results are translated. Urdu uses right-to-left layout. Locale-specific numbers and invoice dates update with the selector. User-entered text, source files, URLs, QR contents, generated encodings and invoice currency are never automatically translated or changed. Native browser controls (file dialogs and built-in form validation) follow the browser/operating-system language.
+
+Translations live in `frontend/src/locales/de.json` and `ur.json`. English interface messages are the lookup keys. Tests require both dictionaries to cover every catalog entry and template message, with matching interpolation placeholders. New languages should be added to the language registry and dictionaries together.
+
 ## Deploy on Hostinger
 
-Follow [the Hostinger deployment guide](docs/DEPLOYMENT.md). Use the repository root as the application root, Node.js 24 (or 22.12+), `npm run build` as the build command, and `npm start` / `server/index.js` as the startup command/file. The server serves the Vue build and `/api` on the same domain.
+Follow [the Hostinger deployment guide](docs/DEPLOYMENT.md). Use the repository root as the application root, Node.js 24 (or 22.13+), `npm run build` as the build command, and `npm start` / `server/index.js` as the startup command/file. The server serves the Vue build and `/api` on the same domain.
 
 A prebuilt upload package can be generated with:
 
@@ -20,7 +28,7 @@ Output: `artifacts/toolmavo-hostinger.zip`. It contains the Node server, source,
 
 ## Local development
 
-Requires Node.js 22.12+ (24 recommended), npm, and MySQL 8.0+ / MariaDB compatible with the schema. Docker Compose uses MySQL 8.4.
+Requires Node.js 22.13+ (24 recommended), npm, and MySQL 8.0+ / MariaDB compatible with the schema. Docker Compose uses MySQL 8.4.
 
 ```bash
 npm ci
@@ -46,11 +54,13 @@ Tables are created on startup with `CREATE TABLE IF NOT EXISTS`; the database us
 
 Files, tool text and QR contents are processed locally in the browser. Only contact and invoice submissions are sent to the API. File limits: 25 MB each, 30 files, 100 MB combined. Contact messages are stored without email delivery; there is no admin inbox or account system.
 
+See the [release test report](docs/TEST_REPORT.md), [German screenshot](docs/home-german-desktop.png), and [Urdu mobile screenshot](docs/home-urdu-mobile.png).
+
 ## Tests
 
 ```bash
 npm test                  # HTTP API, validation, decimal rounding and security tests
-npm run test:frontend     # existing utility tests
+npm run test:frontend     # utilities and localization tests
 DB_HOST=127.0.0.1 DB_NAME=toolmavo DB_USER=toolmavo DB_PASSWORD=toolmavo_local npm run test:integration
 # With the application already running:
 cd frontend

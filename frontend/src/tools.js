@@ -1,4 +1,14 @@
-export function calculate(slug, a, b, d, e) {
+const english = (key, params = {}) =>
+  key.replace(/\{(\w+)\}/g, (match, name) => String(params[name] ?? match));
+const defaultNumber = (value, decimals = 2) => Number(value).toFixed(decimals);
+export function calculate(
+  slug,
+  a,
+  b,
+  d,
+  e,
+  { t = english, n = defaultNumber } = {},
+) {
   for (const n of [a, b, d, e].filter((n) => n !== undefined))
     if (!Number.isFinite(n) || n < 0)
       throw Error("Enter valid non-negative numbers.");
@@ -6,51 +16,67 @@ export function calculate(slug, a, b, d, e) {
     case "profit-margin-calculator":
       if (a <= 0) throw Error("Selling price must be greater than zero.");
       return {
-        value: (((a - b) / a) * 100).toFixed(2) + "%",
-        note: `Profit: ${(a - b).toFixed(2)}`,
+        value: n(((a - b) / a) * 100) + "%",
+        note: t("Profit: {amount}", { amount: n(a - b) }),
       };
     case "markup-calculator":
       return {
-        value: (a * (1 + b / 100)).toFixed(2),
-        note: `Markup: ${((a * b) / 100).toFixed(2)}`,
+        value: n(a * (1 + b / 100)),
+        note: t("Markup: {amount}", { amount: n((a * b) / 100) }),
       };
     case "vat-calculator":
       if (b > 100) throw Error("VAT must be between 0 and 100%.");
       return {
-        value: (a * (1 + b / 100)).toFixed(2),
-        note: `VAT: ${((a * b) / 100).toFixed(2)}`,
+        value: n(a * (1 + b / 100)),
+        note: t("VAT: {amount}", { amount: n((a * b) / 100) }),
       };
     case "discount-calculator":
       if (b > 100) throw Error("Discount must be between 0 and 100%.");
       return {
-        value: (a * (1 - b / 100)).toFixed(2),
-        note: `Savings: ${((a * b) / 100).toFixed(2)}`,
+        value: n(a * (1 - b / 100)),
+        note: t("Savings: {amount}", { amount: n((a * b) / 100) }),
       };
     case "break-even-calculator":
       if (b <= d) throw Error("Selling price must exceed variable cost.");
       return {
-        value: Math.ceil(a / (b - d)) + " units",
-        note: "Rounded up to whole units",
+        value: t("{count} units", { count: n(Math.ceil(a / (b - d)), 0) }),
+        note: t("Rounded up to whole units"),
       };
     case "freelance-rate-calculator":
       if (d <= 0 || e <= 0)
         throw Error("Billable hours and working weeks must exceed zero.");
       return {
-        value: ((a + b) / (d * e)).toFixed(2) + "/hour",
-        note: "Pre-tax rate; include overhead in annual expenses.",
+        value: t("{amount}/hour", { amount: n((a + b) / (d * e)) }),
+        note: t("Pre-tax rate; include overhead in annual expenses."),
       };
     default:
       throw Error("Unknown calculator");
   }
 }
-export function transform(slug, text, action = "encode", second = "") {
+export function transform(
+  slug,
+  text,
+  action = "encode",
+  second = "",
+  { t = english, n = (value) => String(value) } = {},
+) {
   switch (slug) {
     case "word-counter": {
       const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-      return `${words} words · ${[...text].length} characters · ${Math.ceil(words / 200)} min reading time`;
+      return t(
+        "{words} words · {characters} characters · {minutes} min reading time",
+        {
+          words: n(words, 0),
+          characters: n([...text].length, 0),
+          minutes: n(Math.ceil(words / 200), 0),
+        },
+      );
     }
     case "character-counter":
-      return `${[...text].length} characters · ${[...text.replace(/\s/g, "")].length} without whitespace`;
+      return t("{characters} characters · {compact} without whitespace", {
+        characters: n([...text].length, 0),
+        compact: n([...text.replace(/\s/g, "")].length, 0),
+      });
     case "case-converter":
       return action === "lower"
         ? text.toLowerCase()
@@ -63,7 +89,7 @@ export function transform(slug, text, action = "encode", second = "") {
       const a = text.split("\n"),
         b = second.split("\n");
       return a.join("\n") === b.join("\n")
-        ? "Texts are identical."
+        ? t("Texts are identical.")
         : Array.from({ length: Math.max(a.length, b.length) }, (_, i) =>
             a[i] === b[i] ? `  ${a[i]}` : `− ${a[i] ?? ""}\n+ ${b[i] ?? ""}`,
           ).join("\n");
@@ -110,7 +136,9 @@ export function pageIndices(input, count) {
       throw Error("Use page numbers or ascending ranges, for example 1,3-5.");
     const [a, b = a] = part.split("-").map(Number);
     if (a < 1 || b < a || b > count)
-      throw Error(`Pages must be between 1 and ${count}.`);
+      throw Object.assign(Error("Pages must be between 1 and {count}."), {
+        params: { count },
+      });
     for (let p = a; p <= b; p++) pages.push(p - 1);
   }
   return pages;

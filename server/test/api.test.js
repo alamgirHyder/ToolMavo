@@ -52,6 +52,7 @@ test("invalid invoice fields, currency, precision and injected total rejected", 
   ]) {
     const r = await post("/api/invoices", { ...validInvoice, ...change });
     assert.equal(r.status, 400);
+    assert.equal((await r.json()).code, "VALIDATION_ERROR");
   }
 });
 test("contact is validated, trimmed and persisted", async () => {
@@ -101,4 +102,37 @@ test("static app has security headers", async () => {
 });
 test("unknown assets return 404 rather than HTML", async () => {
   assert.equal((await fetch(base + "/missing.js")).status, 404);
+});
+
+test("submission limits return a stable localizable error code", async () => {
+  const limitedServer = createApp(db).listen(0, "127.0.0.1");
+  await once(limitedServer, "listening");
+  try {
+    const url = `http://127.0.0.1:${limitedServer.address().port}/api/contact`;
+    for (let i = 0; i < 30; i++) {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Rate test",
+          email: "rate@example.com",
+          message: "Submission rate limit test.",
+        }),
+      });
+      assert.equal(r.status, 201);
+    }
+    const blocked = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Rate test",
+        email: "rate@example.com",
+        message: "Submission rate limit test.",
+      }),
+    });
+    assert.equal(blocked.status, 429);
+    assert.equal((await blocked.json()).code, "RATE_LIMITED");
+  } finally {
+    await new Promise((resolve) => limitedServer.close(resolve));
+  }
 });

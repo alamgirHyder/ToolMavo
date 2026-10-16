@@ -69,6 +69,7 @@ export function createApp(
     standardHeaders: "draft-8",
     legacyHeaders: false,
     message: {
+      code: "RATE_LIMITED",
       message: "Too many submissions. Please try again in 15 minutes.",
     },
   });
@@ -111,21 +112,25 @@ export function createApp(
   });
   app.use((err, req, res, next) => {
     if (err instanceof z.ZodError)
+      return res.status(400).json({
+        code: "VALIDATION_ERROR",
+        message: err.issues
+          .map((i) => `${i.path.join(".")}: ${i.message}`)
+          .join("; "),
+      });
+    if (err.type === "entity.too.large")
+      return res
+        .status(413)
+        .json({ code: "PAYLOAD_TOO_LARGE", message: "Request exceeds 32 KB." });
+    if (err.type === "entity.parse.failed")
       return res
         .status(400)
-        .json({
-          message: err.issues
-            .map((i) => `${i.path.join(".")}: ${i.message}`)
-            .join("; "),
-        });
-    if (err.type === "entity.too.large")
-      return res.status(413).json({ message: "Request exceeds 32 KB." });
-    if (err.type === "entity.parse.failed")
-      return res.status(400).json({ message: "Invalid JSON request." });
+        .json({ code: "INVALID_JSON", message: "Invalid JSON request." });
     console.error("Request failed:", err.code || err.name);
-    res
-      .status(503)
-      .json({ message: "Service temporarily unavailable. Please try again." });
+    res.status(503).json({
+      code: "SERVICE_UNAVAILABLE",
+      message: "Service temporarily unavailable. Please try again.",
+    });
   });
   return app;
 }
