@@ -1,25 +1,23 @@
 import { createDatabase } from "./db.js";
-import { createApp } from "./app.js";
+import { startServer } from "./runtime.js";
 
 let db;
-// Hostinger's lsnode loader uses require(). Keep this entire module graph free
-// of top-level await so Node 22 can load the ESM entry synchronously.
-async function start() {
+// Hostinger loads this module with require(): no top-level await in this graph.
+function start() {
   db = createDatabase();
-  await db.initialize();
   const proxyHops = Number(process.env.TRUST_PROXY_HOPS || 0);
   if (!Number.isInteger(proxyHops) || proxyHops < 0)
     throw Error("Invalid TRUST_PROXY_HOPS");
-  const app = createApp(db, { trustProxy: proxyHops || false });
-  const server = app.listen(Number(process.env.PORT || 8080), "0.0.0.0", () =>
-    console.log("ToolMavo is listening. Database: MySQL."),
-  );
-  server.on("error", failStartup);
+  const runtime = startServer(db, {
+    port: Number(process.env.PORT || 8080),
+    trustProxy: proxyHops || false,
+  });
+  runtime.server.on("error", failStartup);
   function shutdown() {
-    server.close(async () => {
-      await db.close();
-      process.exit(0);
-    });
+    runtime
+      .close()
+      .then(() => process.exit(0))
+      .catch(() => process.exit(1));
     setTimeout(() => process.exit(1), 10000).unref();
   }
   process.on("SIGTERM", shutdown);
@@ -30,4 +28,8 @@ async function failStartup(error) {
   await db?.close().catch(() => {});
   process.exitCode = 1;
 }
-start().catch(failStartup);
+try {
+  start();
+} catch (error) {
+  failStartup(error);
+}

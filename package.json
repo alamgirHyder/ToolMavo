@@ -1,6 +1,6 @@
 {
   "name": "toolmavo",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node server/index.js",
     "build": "npm --prefix frontend ci --include=dev && npm --prefix frontend run build",
-    "test": "node --test server/test/api.test.js",
+    "test": "node --test server/test/api.test.js server/test/runtime.test.js",
     "test:frontend": "npm --prefix frontend test",
     "test:integration": "node --test server/test/mysql.integration.test.js",
     "package:hostinger": "python3 scripts/package-hostinger.py",

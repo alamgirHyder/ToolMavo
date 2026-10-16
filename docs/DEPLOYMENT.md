@@ -51,7 +51,7 @@ Enter these in the Node.js application's environment-variable panel:
 
 ## 6. Deploy and verify
 
-Deploy/restart the Node.js app and inspect its logs. Successful startup prints `ToolMavo is listening. Database: MySQL.` The app creates its two tables automatically if the database user has CREATE permission.
+Deploy/restart the Node.js app and inspect its logs. HTTP startup prints `ToolMavo HTTP server is listening.` Database readiness is confirmed separately by `ToolMavo database ready: MySQL.` The app creates its two tables automatically if the database user has CREATE permission.
 
 On your assigned HTTPS domain:
 
@@ -79,3 +79,10 @@ The 12 built-in language packs and manual switching require no API keys, paid tr
 Version 2.2.1 removes top-level await from the startup module graph so Hostinger's `lsnode.js` can load `server/index.js` with `require()`. Keep the entry file set to `server/index.js`. After updating GitHub, redeploy the latest commit; a restart of an older built version will not include this correction. Existing database variables remain applicable.
 
 To reproduce the hosting loader locally, supply your test database bindings and run `npm run test:startup`. The test also covers direct Node startup and missing configuration.
+
+
+## ENOTFOUND and the three-second startup limit
+
+Version 2.2.2 calls `listen()` before waiting for MySQL. The homepage can load while the database initializes; `/api/health` and other API endpoints return 503 until initialization succeeds. Failed initialization retries every 10 seconds.
+
+`ENOTFOUND` means the configured database hostname cannot be resolved. Check the Node app's `DB_HOST` against the MySQL hostname shown in hPanel. Use only the hostname or IP address; omit `https://`, ports, paths and spaces. Use `localhost` only if Hostinger identifies it as the correct database hostname. Save the setting and restart the app to load the updated environment. Database name and username belong in their own variables, not `DB_HOST`.

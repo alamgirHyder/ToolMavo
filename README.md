@@ -42,7 +42,7 @@ The application listens on port 8080 unless `PORT` is supplied. For live Vue dev
 
 The app requires `DB_HOST`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD`. Optional settings: `DB_PORT` (3306), `DB_SSL=true` (verified TLS), `NODE_ENV=production`, and `TRUST_PROXY_HOPS` (default 0; set only when your hosting proxy topology is confirmed). Set these through the hosting dashboard; `.env.example` is a reference, not an automatically loaded credentials file. Database credentials never belong in frontend variables.
 
-Tables are created on startup with `CREATE TABLE IF NOT EXISTS`; the database user needs CREATE, SELECT and INSERT privileges. Startup fails if the database cannot be initialized. Existing tables are retained; future schema changes require explicit migrations. This version does not import historical PostgreSQL data.
+Tables are created on startup with `CREATE TABLE IF NOT EXISTS`; the database user needs CREATE, SELECT and INSERT privileges. HTTP starts immediately to meet Hostinger’s startup deadline. Database initialization runs in the background and retries every 10 seconds. API requests return 503 and the health endpoint reports DOWN until initialization succeeds; browser-only tools and the homepage remain available. Missing required environment variables still prevent startup. Existing tables are retained; future schema changes require explicit migrations. This version does not import historical PostgreSQL data.
 
 ## Tools
 

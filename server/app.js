@@ -38,6 +38,7 @@ export function createApp(
   {
     staticDir = fileURLToPath(new URL("../frontend/dist", import.meta.url)),
     trustProxy = false,
+    isReady = () => true,
   } = {},
 ) {
   const app = express();
@@ -62,6 +63,15 @@ export function createApp(
       },
     }),
   );
+  app.use("/api", (req, res, next) => {
+    if (isReady()) return next();
+    res.status(503).json({
+      status: "DOWN",
+      database: "MySQL",
+      code: "DATABASE_NOT_READY",
+      message: "Service temporarily unavailable. Please try again.",
+    });
+  });
   app.use("/api", express.json({ limit: "32kb" }));
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,

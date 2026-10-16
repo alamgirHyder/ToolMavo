@@ -1,3 +1,13 @@
+# Hostinger startup/readiness patch 2.2.2
+
+The HTTP listener now starts before asynchronous MySQL initialization, satisfying Hostinger's three-second `listen()` requirement. APIs return 503 with database status DOWN until initialization succeeds; the site never reports a healthy database prematurely. Initialization errors retry every 10 seconds. ENOTFOUND logs explain how to check DB_HOST without exposing its value or credentials.
+
+Patch validation: **12 API/readiness tests, 3 startup-loader tests and 1 real MySQL integration test passed** (16 tests, no failures or skips). New tests hold initialization unresolved while asserting the home page responds, block submissions before readiness, simulate ENOTFOUND, verify safe diagnostics and recover on retry. Previous feature/frontend results below are retained as baseline; the frontend did not change in this patch.
+
+This patch does not correct a Hostinger database hostname remotely. The operator must set DB_HOST to the actual MySQL hostname from hPanel and verify `/api/health` returns UP after updating the environment.
+
+## Earlier validation
+
 # Hostinger startup patch 2.2.1
 
 Hostinger loads the configured entry through `require()`. The previous entry used top-level `await`, which Node rejects with `ERR_REQUIRE_ASYNC_MODULE` in this loading path. Database initialization now runs inside an async bootstrap function, with startup failure handling. The entry file remains `server/index.js`.
